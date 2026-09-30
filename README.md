@@ -4,7 +4,7 @@
 
 **线上地址：**[电脑预订页面](https://felixwang1987.github.io/ai-heroes-hall-booking/) · [Windows 平板展示页面](https://felixwang1987.github.io/ai-heroes-hall-booking/?mode=display) · [GitHub 源码](https://github.com/felixwang1987/ai-heroes-hall-booking)
 
-> 账号角色绑定完成前，线上页面会标明“本机演示模式”。此模式的预约只保存在当前浏览器；不要把它当作正式预约记录。
+电脑端使用部门共用密码，平板端使用单独的只读密码。两个账号的邮箱已配置在网页中，密码只由 Supabase 验证，不保存在 GitHub 仓库。
 
 ## 已实现
 
