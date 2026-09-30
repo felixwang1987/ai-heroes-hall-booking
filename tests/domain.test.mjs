@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as domain from '../src/domain.js';
 import {
   officeDateKey,
   toOfficeISO,
@@ -50,6 +51,19 @@ test('rejects overlap but allows adjacent meetings and ignores canceled ones', (
   assert.equal(validateDraft({ ...draft, startTime: '10:00', endTime: '10:30' }, { now: NOW, bookings: booked }).ok, true);
   assert.equal(validateDraft(draft, { now: NOW, bookings: booked, excludeId: 'one' }).ok, true);
   assert.equal(validateDraft(draft, { now: NOW, bookings: [{ ...booked[0], status: 'cancelled' }] }).ok, true);
+});
+
+test('conflict preview finds occupied meetings without draft identity fields and skips the meeting being edited', () => {
+  assert.equal(typeof domain.overlappingBookings, 'function');
+  const bookings = [
+    { id: 'occupied', title: 'Review', booker: 'Lin', starts_at: toOfficeISO(date, '09:00'), ends_at: toOfficeISO(date, '10:00'), status: 'confirmed' },
+    { id: 'adjacent', starts_at: toOfficeISO(date, '10:30'), ends_at: toOfficeISO(date, '11:00'), status: 'confirmed' },
+    { id: 'cancelled', starts_at: toOfficeISO(date, '09:30'), ends_at: toOfficeISO(date, '10:30'), status: 'cancelled' },
+  ];
+  const start = toOfficeISO(date, '09:30');
+  const end = toOfficeISO(date, '10:30');
+  assert.deepEqual(domain.overlappingBookings(bookings, start, end).map((booking) => booking.id), ['occupied']);
+  assert.deepEqual(domain.overlappingBookings(bookings, start, end, 'occupied'), []);
 });
 
 test('marks occupied and lunch slots for the full office day', () => {

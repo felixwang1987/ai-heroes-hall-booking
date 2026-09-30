@@ -27,13 +27,13 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-function authResponse(accessToken = 'access-1', refreshToken = 'refresh-1') {
+function authResponse(accessToken = 'access-1', refreshToken = 'refresh-1', email = config.bookerEmail) {
   return {
     access_token: accessToken,
     token_type: 'bearer',
     expires_in: 3600,
     refresh_token: refreshToken,
-    user: { id: 'user-1', email: config.bookerEmail },
+    user: { id: 'user-1', email },
   };
 }
 
@@ -49,7 +49,7 @@ function scriptedFetch(...replies) {
 }
 
 function makeStore(network, storage = memoryStorage(), now = () => 1_700_000_000_000) {
-  return createRemoteStore(config, { fetch: network.fetch, storage, now });
+  return createRemoteStore(config, { role: 'booker', fetch: network.fetch, storage, now });
 }
 
 async function signedInStore(...laterReplies) {
@@ -114,6 +114,7 @@ test('restoreSession refreshes an expired token and verifies the saved role', as
     jsonResponse([{ role: 'booker' }]),
   );
   const store = createRemoteStore(config, {
+    role: 'booker',
     fetch: network.fetch,
     storage,
     now: () => 1_700_004_000_000,
@@ -135,6 +136,7 @@ test('expired refresh token clears the saved session', async () => {
   await makeStore(initialNetwork, storage).signIn('booker', 'password');
   const network = scriptedFetch(jsonResponse({ error: 'invalid_grant' }, 401));
   const store = createRemoteStore(config, {
+    role: 'booker',
     fetch: network.fetch,
     storage,
     now: () => 1_700_004_000_000,
@@ -142,6 +144,87 @@ test('expired refresh token clears the saved session', async () => {
   assert.equal(await store.restoreSession(), null);
   assert.equal(store.getRole(), null);
   assert.equal(storage.contents(), '');
+});
+
+test('legacy session migrates only on a page with the matching role', async () => {
+  const storage = memoryStorage();
+  const oldKey = 'ai-heroes-hall:session:hall.supabase.co';
+  const newBookerKey = `${oldKey}:booker`;
+  const legacySession = JSON.stringify({ refreshToken: 'old-booker-refresh', role: 'booker' });
+  storage.setItem(oldKey, legacySession);
+
+  const displayNetwork = scriptedFetch();
+  const display = createRemoteStore(config, {
+    role: 'display', fetch: displayNetwork.fetch, storage,
+  });
+  assert.equal(await display.restoreSession(), null);
+  assert.equal(storage.getItem(oldKey), legacySession);
+  assert.equal(displayNetwork.calls.length, 0);
+
+  const bookerNetwork = scriptedFetch(
+    jsonResponse(authResponse('booker-access', 'new-booker-refresh')),
+    jsonResponse([{ role: 'booker' }]),
+  );
+  const booker = createRemoteStore(config, {
+    role: 'booker', fetch: bookerNetwork.fetch, storage,
+  });
+  assert.equal(await booker.restoreSession(), 'booker');
+  assert.deepEqual(JSON.parse(bookerNetwork.calls[0].options.body), {
+    refresh_token: 'old-booker-refresh',
+  });
+  assert.equal(storage.getItem(oldKey), null);
+  assert.deepEqual(JSON.parse(storage.getItem(newBookerKey)), {
+    refreshToken: 'new-booker-refresh', role: 'booker',
+  });
+});
+
+test('booker and display keep separate sessions in one browser profile', async () => {
+  const storage = memoryStorage();
+  const bookerNetwork = scriptedFetch(
+    jsonResponse(authResponse('booker-access', 'booker-refresh')),
+    jsonResponse([{ role: 'booker' }]),
+  );
+  const displayNetwork = scriptedFetch(
+    jsonResponse(authResponse('display-access', 'display-refresh', config.displayEmail)),
+    jsonResponse([{ role: 'display' }]),
+  );
+  const booker = createRemoteStore(config, {
+    role: 'booker', fetch: bookerNetwork.fetch, storage,
+  });
+  const display = createRemoteStore(config, {
+    role: 'display', fetch: displayNetwork.fetch, storage,
+  });
+  await booker.signIn('booker', 'department-password');
+  await display.signIn('display', 'tablet-password');
+  assert.match(storage.contents(), /booker-refresh/);
+  assert.match(storage.contents(), /display-refresh/);
+
+  const restoredBookerNetwork = scriptedFetch(
+    jsonResponse(authResponse('booker-access-2', 'booker-refresh-2')),
+    jsonResponse([{ role: 'booker' }]),
+    new Response(null, { status: 204 }),
+  );
+  const restoredBooker = createRemoteStore(config, {
+    role: 'booker', fetch: restoredBookerNetwork.fetch, storage,
+  });
+  assert.equal(await restoredBooker.restoreSession(), 'booker');
+  assert.deepEqual(JSON.parse(restoredBookerNetwork.calls[0].options.body), {
+    refresh_token: 'booker-refresh',
+  });
+  await restoredBooker.signOut();
+  assert.match(storage.contents(), /display-refresh/);
+
+  const restoredDisplayNetwork = scriptedFetch(
+    jsonResponse(authResponse('display-access-2', 'display-refresh-2', config.displayEmail)),
+    jsonResponse([{ role: 'display' }]),
+  );
+  const restoredDisplay = createRemoteStore(config, {
+    role: 'display', fetch: restoredDisplayNetwork.fetch, storage,
+  });
+  assert.equal(await restoredDisplay.restoreSession(), 'display');
+  assert.deepEqual(JSON.parse(restoredDisplayNetwork.calls[0].options.body), {
+    refresh_token: 'display-refresh',
+  });
 });
 
 test('listBookings requests only confirmed overlaps in UTC order', async () => {

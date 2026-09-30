@@ -4,7 +4,7 @@ import { createDemoStore } from './demo.js';
 import {
   OFFICE_TIME_ZONE, DAY_START, DAY_END, SLOT_MINUTES,
   officeDateKey, officeTime, toOfficeISO, shiftDateKey, weekStart,
-  parseTime, minutesToTime, validateDraft, availabilityForDate, statusAt,
+  parseTime, minutesToTime, validateDraft, overlappingBookings, availabilityForDate, statusAt,
 } from './domain.js';
 import { upcomingHolidays } from './holidays.js';
 
@@ -13,7 +13,7 @@ const mode = new URLSearchParams(location.search).get('mode') === 'display' ? 'd
 const expectedRole = mode === 'display' ? 'display' : 'booker';
 const configured = Boolean(remoteConfig.supabaseUrl && remoteConfig.supabasePublishableKey &&
   remoteConfig.bookerEmail && remoteConfig.displayEmail);
-const store = configured ? createRemoteStore(remoteConfig) : createDemoStore();
+const store = configured ? createRemoteStore(remoteConfig, { role: expectedRole }) : createDemoStore();
 
 const state = {
   role: null,
@@ -222,12 +222,13 @@ function renderNext() {
     make('p', 'next-meeting-booker', `预订人 / Booker: ${next.booker}`));
 }
 
-function fillAvailability(container, dateKey) {
+function fillAvailability(container, dateKey, excludeId = null) {
   if (!state.loadedFrom || dateKey < state.loadedFrom || dateKey > state.loadedTo) {
     container.replaceChildren(make('span', 'availability-prompt', '正在读取可用时段 / Loading'));
     return;
   }
-  const segments = availabilityForDate(state.bookings, dateKey);
+  const bookings = excludeId ? state.bookings.filter((booking) => booking.id !== excludeId) : state.bookings;
+  const segments = availabilityForDate(bookings, dateKey);
   container.replaceChildren(...segments.map((slot) => {
     const bar = make('span', `availability-segment ${slot.status}`);
     bar.title = `${slot.start}–${slot.end} · ${slot.status === 'available' ? '可用' : slot.status === 'booked' ? '已预订' : '午休'}`;
@@ -243,10 +244,50 @@ function renderAvailability() {
   if (!state.role) {
     todayBar.replaceChildren();
     bookingBar.replaceChildren(make('span', 'availability-prompt', '登录后查看可用时段'));
+    renderBookingConflict();
     return;
   }
   fillAvailability(todayBar, officeDateKey());
-  if (state.selectedDate) fillAvailability(bookingBar, state.selectedDate);
+  if (state.selectedDate) fillAvailability(bookingBar, state.selectedDate, state.editingId);
+  renderBookingConflict();
+}
+
+function renderBookingConflict() {
+  const target = $('bookingConflict');
+  const date = $('meetingDate').value;
+  const startTime = $('startTime').value;
+  const endTime = $('endTime').value;
+  const start = parseTime(startTime);
+  const end = parseTime(endTime);
+  if (!hasBookerAccess() || !date || !Number.isFinite(start) || !Number.isFinite(end) ||
+      end <= start || !state.loadedFrom || date < state.loadedFrom || date > state.loadedTo) {
+    target.replaceChildren();
+    return;
+  }
+  let startsAt;
+  let endsAt;
+  try {
+    startsAt = toOfficeISO(date, startTime);
+    endsAt = toOfficeISO(date, endTime);
+  } catch {
+    target.replaceChildren();
+    return;
+  }
+  const conflicts = overlappingBookings(state.bookings, startsAt, endsAt, state.editingId);
+  if (!conflicts.length) {
+    target.replaceChildren();
+    return;
+  }
+  const list = make('ul', 'booking-conflict-list');
+  for (const booking of conflicts) {
+    const row = make('li', 'booking-conflict-row');
+    row.append(make('span', 'booking-conflict-time', formatRange(booking)),
+      make('span', '', booking.title),
+      make('span', '', `预订人 / Booker: ${booking.booker}`));
+    list.append(row);
+  }
+  target.replaceChildren(make('strong', '', '时间冲突 / Time conflict'),
+    make('p', '', '所选时间与已有会议重叠，请选择其他时段。'), list);
 }
 
 function renderSchedule() {
@@ -374,6 +415,7 @@ function openNewBooking() {
   renderAvailability();
   showDialog($('bookingDialog'));
   $('meetingTitle').focus();
+  void refresh();
 }
 
 function openEdit(booking) {
@@ -395,6 +437,7 @@ function openEdit(booking) {
   setText('deleteBookingBtn', '取消预约 / Delete');
   renderAvailability();
   showDialog($('bookingDialog'));
+  void refresh();
 }
 
 function openLogin() {
@@ -576,6 +619,8 @@ function bindEvents() {
     renderAvailability();
     void refresh();
   });
+  $('startTime').addEventListener('change', renderBookingConflict);
+  $('endTime').addEventListener('change', renderBookingConflict);
   $('prevWeekBtn').addEventListener('click', () => { state.week = shiftDateKey(state.week, -7); renderSchedule(); void refresh(); });
   $('thisWeekBtn').addEventListener('click', () => { state.week = weekStart(officeDateKey()); renderSchedule(); void refresh(); });
   $('nextWeekBtn').addEventListener('click', () => { state.week = shiftDateKey(state.week, 7); renderSchedule(); void refresh(); });

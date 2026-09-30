@@ -93,11 +93,16 @@ function validateTokens(tokens) {
 
 export function createRemoteStore(config, deps = {}) {
   const { baseUrl, key } = validateConfig(config);
+  const clientRole = deps.role;
+  if (!['booker', 'display'].includes(clientRole)) {
+    throw storeError('CONFIG', 'A booker or display client role is required.');
+  }
   const fetchImpl = deps.fetch ?? globalThis.fetch?.bind(globalThis);
   if (typeof fetchImpl !== 'function') throw storeError('CONFIG', 'Fetch is unavailable.');
   const storage = deps.storage ?? defaultStorage();
   const now = deps.now ?? Date.now;
-  const storageKey = `ai-heroes-hall:session:${new URL(baseUrl).host}`;
+  const legacyStorageKey = `ai-heroes-hall:session:${new URL(baseUrl).host}`;
+  const storageKey = `${legacyStorageKey}:${clientRole}`;
   let session = null;
   let refreshPromise = null;
 
@@ -215,7 +220,7 @@ export function createRemoteStore(config, deps = {}) {
   }
 
   async function signIn(role, password) {
-    if (!['booker', 'display'].includes(role) || typeof password !== 'string' || !password) {
+    if (role !== clientRole || typeof password !== 'string' || !password) {
       throw storeError('VALIDATION', 'A role and password are required.');
     }
     const email = role === 'booker' ? config.bookerEmail : config.displayEmail;
@@ -238,12 +243,28 @@ export function createRemoteStore(config, deps = {}) {
     if (session) return session.role;
     let saved;
     try {
-      saved = JSON.parse(storage.getItem(storageKey) ?? 'null');
+      let raw = storage.getItem(storageKey);
+      if (raw === null) {
+        const legacyRaw = storage.getItem(legacyStorageKey);
+        let legacy = null;
+        try { legacy = JSON.parse(legacyRaw); } catch { /* Keep malformed legacy data untouched. */ }
+        if (legacy?.role === clientRole &&
+            typeof legacy.refreshToken === 'string' && legacy.refreshToken) {
+          try {
+            storage.setItem(storageKey, legacyRaw);
+            storage.removeItem(legacyStorageKey);
+          } catch {
+            // Keep the old token if storage becomes read-only during migration.
+          }
+          raw = legacyRaw;
+        }
+      }
+      saved = JSON.parse(raw ?? 'null');
     } catch {
       clearSession();
       return null;
     }
-    if (!saved || !['booker', 'display'].includes(saved.role) ||
+    if (!saved || saved.role !== clientRole ||
         typeof saved.refreshToken !== 'string' || !saved.refreshToken) {
       clearSession();
       return null;

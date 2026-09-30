@@ -78,6 +78,16 @@ function error(code, message, conflict) {
   return { ok: false, code, message, ...(conflict ? { conflict } : {}) };
 }
 
+export function overlappingBookings(bookings, startsAt, endsAt, excludeId) {
+  const start = Date.parse(startsAt);
+  const end = Date.parse(endsAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+  return bookings.filter((booking) =>
+    booking.status !== 'cancelled' && booking.id !== excludeId &&
+    start < Date.parse(booking.ends_at) && end > Date.parse(booking.starts_at))
+    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+}
+
 export function validateDraft(draft, options = {}) {
   const { now = new Date(), bookings = [], excludeId, allowPast = false, timeZone = OFFICE_TIME_ZONE } = options;
   const title = String(draft?.title ?? '').trim();
@@ -107,10 +117,7 @@ export function validateDraft(draft, options = {}) {
   if (!allowPast && Date.parse(starts_at) < new Date(now).getTime()) {
     return error('PAST', '不能预订已经开始的时段。');
   }
-  const conflict = bookings.find((booking) =>
-    booking.status !== 'cancelled' && booking.id !== excludeId &&
-    Date.parse(starts_at) < Date.parse(booking.ends_at) &&
-    Date.parse(ends_at) > Date.parse(booking.starts_at));
+  const conflict = overlappingBookings(bookings, starts_at, ends_at, excludeId)[0];
   if (conflict) return error('CONFLICT', '所选时间与已有会议重叠。', conflict);
   return { ok: true, starts_at, ends_at };
 }
