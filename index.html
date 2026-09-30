@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111d39" />
+    <meta name="description" content="AI 英雄汇会议室日程与预订。" />
+    <title>AI 英雄汇 · 会议室预订</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-mode="booking" data-auth="signed-out">
+    <a class="skip-link" href="#mainContent">跳到日程 / Skip to schedule</a>
+
+    <div class="app-shell">
+      <aside class="room-rail" aria-label="会议室当前状态">
+        <div class="rail-top">
+          <div class="rail-mark" aria-hidden="true">AI</div>
+          <p class="rail-eyebrow">MEETING ROOM / 会议室</p>
+          <h1>AI 英雄汇</h1>
+          <p class="rail-subtitle">AI Heroes Hall · Chongqing</p>
+          <p id="roomStatus" class="status-pill" role="status" aria-live="polite">正在查询状态 / Checking status</p>
+        </div>
+
+        <div class="rail-clock">
+          <p class="rail-section-label">LOCAL TIME / 当地时间</p>
+          <time id="clockReadout" class="clock-readout">--:--</time>
+          <p id="todayLabel" class="today-label">正在读取日期 / Loading date</p>
+        </div>
+
+        <section class="holiday-panel" aria-labelledby="holidayHeading">
+          <div class="holiday-heading">
+            <p class="rail-section-label" id="holidayHeading">UPCOMING HOLIDAYS / 即将到来的节假日</p>
+            <span class="holiday-region">CHINA · MALAYSIA</span>
+          </div>
+          <div id="holidayList" class="holiday-list" aria-live="polite">
+            <p class="holiday-placeholder">正在查询节假日 / Loading holidays</p>
+          </div>
+        </section>
+
+        <div class="rail-footer">
+          <span class="rail-footer-dot" aria-hidden="true"></span>
+          <span id="syncStatus" role="status" aria-live="polite">正在同步 / Syncing</span>
+        </div>
+      </aside>
+
+      <main id="mainContent" class="main-content">
+        <div id="demoBanner" class="demo-banner" role="status" hidden></div>
+
+        <header class="main-header">
+          <div class="page-heading">
+            <p class="eyebrow">AI HEROES HALL / AI 英雄汇</p>
+            <h2>Today’s schedule <span>/ 今日日程</span></h2>
+            <p class="page-intro">一目了然地查看会议与空闲时间。</p>
+          </div>
+          <div class="header-actions" aria-label="页面操作">
+            <button id="authButton" class="button button-quiet" type="button">登录 / Sign in</button>
+            <button id="openScheduleBtn" class="button button-outline" type="button">日程预览 / Schedule</button>
+            <button id="openBookingBtn" class="button button-primary booking-control" type="button">预订会议室 / Book room</button>
+          </div>
+        </header>
+
+        <section class="today-panel" aria-labelledby="todayHeading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">MEETINGS / 会议</p>
+              <h3 id="todayHeading">Today / 今天</h3>
+            </div>
+            <span class="office-hours">08:00–17:00 · 每天 / Daily</span>
+          </div>
+          <div class="booking-table" role="table" aria-label="今日会议列表">
+            <div class="booking-table-head" role="row">
+              <span role="columnheader">TIME / 时间</span>
+              <span role="columnheader">MEETING / 会议名称</span>
+              <span role="columnheader">BOOKER / 预订人</span>
+            </div>
+            <div id="todayBookings" class="booking-table-body" role="rowgroup" aria-live="polite">
+              <p class="empty-state">正在读取今日日程 / Loading today’s schedule</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="summary-grid">
+          <section class="summary-card next-card" aria-labelledby="nextHeading">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">NEXT MEETING</p>
+                <h3 id="nextHeading">下一场会议</h3>
+              </div>
+              <span class="card-index" aria-hidden="true">01</span>
+            </div>
+            <div id="nextMeeting" class="card-body" aria-live="polite">
+              <p class="card-placeholder">正在查询 / Loading</p>
+            </div>
+          </section>
+
+          <section class="summary-card details-card" aria-labelledby="detailsHeading">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">ROOM DETAILS</p>
+                <h3 id="detailsHeading">会议室详情</h3>
+              </div>
+              <span class="card-index" aria-hidden="true">02</span>
+            </div>
+            <div class="room-facts" aria-label="会议室设施">
+              <span>12 人 / People</span>
+              <span>显示屏 / Display</span>
+              <span>摄像头 / Camera</span>
+              <span>无线网络 / Wi-Fi</span>
+            </div>
+            <p class="room-hours">可预约时间 08:00–17:00<br />午休 12:00–13:00</p>
+          </section>
+
+          <section class="summary-card availability-card" aria-labelledby="availabilityHeading">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">AVAILABILITY</p>
+                <h3 id="availabilityHeading">今日可用状态</h3>
+              </div>
+              <span class="card-index" aria-hidden="true">03</span>
+            </div>
+            <div class="availability-scale" aria-hidden="true">
+              <span>08:00</span><span>12:00</span><span>17:00</span>
+            </div>
+            <div id="availabilityBar" class="availability-bar" role="img" aria-label="今日可用时段">
+              <div class="availability-segment available" style="flex:4"></div>
+              <div class="availability-segment lunch" style="flex:1"></div>
+              <div class="availability-segment available" style="flex:4"></div>
+            </div>
+            <div class="availability-legend" aria-label="时段颜色说明">
+              <span><i class="legend-swatch available" aria-hidden="true"></i>可用 / Available</span>
+              <span><i class="legend-swatch booked" aria-hidden="true"></i>已预订 / Booked</span>
+              <span><i class="legend-swatch lunch" aria-hidden="true"></i>午休 / Lunch</span>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="scheduleDialog" class="app-dialog schedule-dialog" aria-labelledby="scheduleTitle">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-eyebrow">SCHEDULE / 日程</p>
+            <h2 id="scheduleTitle">Schedule preview / 日程预览</h2>
+          </div>
+          <button id="closeScheduleBtn" class="dialog-close" type="button" aria-label="关闭日程预览">关闭</button>
+        </header>
+        <div class="schedule-toolbar">
+          <div class="week-navigation" aria-label="选择周">
+            <button id="prevWeekBtn" class="button button-quiet" type="button">上一周</button>
+            <button id="thisWeekBtn" class="button button-outline" type="button">本周 / This week</button>
+            <button id="nextWeekBtn" class="button button-quiet" type="button">下一周</button>
+          </div>
+          <p id="scheduleRange" class="schedule-range" aria-live="polite">正在读取日期范围</p>
+          <div class="view-switch" role="group" aria-label="日程显示方式">
+            <button id="weekViewBtn" class="view-button is-active" type="button" aria-pressed="true">周视图 / Week</button>
+            <button id="agendaViewBtn" class="view-button" type="button" aria-pressed="false">列表 / Agenda</button>
+          </div>
+        </div>
+        <div id="scheduleContent" class="schedule-content" aria-live="polite">
+          <p class="empty-state">正在加载本周日程 / Loading schedule</p>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="bookingDialog" class="app-dialog booking-dialog" aria-labelledby="bookingDialogTitle">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-eyebrow">BOOKING / 预订</p>
+            <h2 id="bookingDialogTitle">Book room / 预订会议室</h2>
+          </div>
+          <button id="closeBookingBtn" class="dialog-close" type="button" aria-label="关闭预订表单">关闭</button>
+        </header>
+        <form id="bookingForm" class="booking-form">
+          <div class="field">
+            <label for="meetingTitle">会议名称 / Meeting name <span class="required-mark">*</span></label>
+            <input id="meetingTitle" name="meetingTitle" type="text" maxlength="120" autocomplete="off" required placeholder="例如：项目例会" />
+          </div>
+          <div class="field">
+            <label for="bookerName">预订人 / Booker <span class="required-mark">*</span></label>
+            <input id="bookerName" name="bookerName" type="text" maxlength="80" autocomplete="name" required placeholder="您的姓名" />
+          </div>
+          <fieldset class="time-fieldset">
+            <legend>会议时间 / Meeting time</legend>
+            <div class="time-fields">
+              <div class="field">
+                <label for="meetingDate">日期 / Date</label>
+                <input id="meetingDate" name="meetingDate" type="date" required />
+              </div>
+              <div class="field">
+                <label for="startTime">开始 / Start</label>
+                <select id="startTime" name="startTime" required><option value="">选择时间</option></select>
+              </div>
+              <div class="field">
+                <label for="endTime">结束 / End</label>
+                <select id="endTime" name="endTime" required><option value="">选择时间</option></select>
+              </div>
+            </div>
+            <p class="field-hint">08:00–17:00，每 30 分钟一个时段。12:00–13:00 午休不可预订。</p>
+          </fieldset>
+          <div class="booking-availability" aria-label="所选日期可用状态">
+            <div class="booking-availability-title">
+              <strong>所选日期可用状态 / Availability</strong>
+              <span>08:00–17:00</span>
+            </div>
+            <div id="bookingAvailabilityBar" class="availability-bar booking-availability-bar">
+              <span class="availability-prompt">选择日期以查看可用时段</span>
+            </div>
+            <div class="availability-legend">
+              <span><i class="legend-swatch available" aria-hidden="true"></i>可用</span>
+              <span><i class="legend-swatch booked" aria-hidden="true"></i>已预订</span>
+              <span><i class="legend-swatch lunch" aria-hidden="true"></i>午休</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="meetingRemark">备注 / Remark <span class="optional-mark">可选 / Optional</span></label>
+            <textarea id="meetingRemark" name="meetingRemark" rows="3" maxlength="500" placeholder="其他需要说明的信息"></textarea>
+          </div>
+          <p id="bookingError" class="form-error" role="alert"></p>
+          <div class="form-actions">
+            <button id="deleteBookingBtn" class="button button-danger" type="button" hidden>取消预约 / Delete</button>
+            <button id="bookingSubmit" class="button button-primary" type="submit">确认预订 / Book room</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog id="loginDialog" class="app-dialog login-dialog" aria-labelledby="loginTitle">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-eyebrow">TEAM ACCESS / 团队访问</p>
+            <h2 id="loginTitle">部门登录 / Team sign in</h2>
+          </div>
+          <button id="closeLoginBtn" class="dialog-close" type="button" aria-label="关闭登录表单">关闭</button>
+        </header>
+        <form id="loginForm" class="login-form">
+          <p>使用部门共用密码预订或管理会议。</p>
+          <div class="field">
+            <label for="loginPassword">部门密码 / Team password</label>
+            <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+          </div>
+          <p id="loginError" class="form-error" role="alert"></p>
+          <button class="button button-primary" type="submit">登录 / Sign in</button>
+        </form>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

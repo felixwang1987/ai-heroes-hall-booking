@@ -1,0 +1,10 @@
+{
+  "name": "ai-heroes-hall-booking",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "dev": "python3 -m http.server 4173"
+  }
+}
