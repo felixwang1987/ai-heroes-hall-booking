@@ -3,6 +3,7 @@
 
 const EDITABLE_FIELDS = ['title', 'booker', 'starts_at', 'ends_at', 'remark'];
 const REFRESH_EARLY_MS = 60_000;
+const BOOKING_PAGE_SIZE = 500;
 
 function storeError(code, message, cause, dbCode) {
   const error = new Error(message, cause ? { cause } : undefined);
@@ -267,7 +268,7 @@ export function createRemoteStore(config, deps = {}) {
     clearSession();
     if (!accessToken) return;
     try {
-      await request('/auth/v1/logout', { method: 'POST', token: accessToken });
+      await request('/auth/v1/logout?scope=local', { method: 'POST', token: accessToken });
     } catch {
       // Local sign-out is definitive even while offline.
     }
@@ -285,9 +286,16 @@ export function createRemoteStore(config, deps = {}) {
       starts_at: `lt.${toISO}`,
       ends_at: `gt.${fromISO}`,
       order: 'starts_at.asc',
+      limit: String(BOOKING_PAGE_SIZE),
     });
-    const rows = await authorizedRequest(`/rest/v1/bookings?${params}`);
-    if (!Array.isArray(rows)) throw storeError('REMOTE', 'Invalid bookings response.');
+    const rows = [];
+    while (true) {
+      params.set('offset', String(rows.length));
+      const page = await authorizedRequest(`/rest/v1/bookings?${params}`);
+      if (!Array.isArray(page)) throw storeError('REMOTE', 'Invalid bookings response.');
+      rows.push(...page);
+      if (page.length < BOOKING_PAGE_SIZE) break;
+    }
     return rows.filter((row) => row.status === 'confirmed')
       .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
   }

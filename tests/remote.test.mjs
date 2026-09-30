@@ -161,6 +161,27 @@ test('listBookings requests only confirmed overlaps in UTC order', async () => {
   assert.equal(query.get('order'), 'starts_at.asc');
 });
 
+test('listBookings fetches every page when the API limits the first response', async () => {
+  const firstPage = Array.from({ length: 500 }, (_, index) => ({
+    id: `booking-${index}`, status: 'confirmed',
+    starts_at: new Date(Date.parse('2026-10-01T00:00:00Z') + index * 60_000).toISOString(),
+  }));
+  const finalBooking = {
+    id: 'booking-500', status: 'confirmed', starts_at: '2026-10-01T08:20:00.000Z',
+  };
+  const { store, network } = await signedInStore(
+    jsonResponse(firstPage),
+    jsonResponse([finalBooking]),
+  );
+  const result = await store.listBookings('2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z');
+  assert.equal(result.length, 501);
+  assert.equal(result.at(-1).id, 'booking-500');
+  assert.equal(network.calls[2].url.searchParams.get('limit'), '500');
+  assert.equal(network.calls[2].url.searchParams.get('offset'), '0');
+  assert.equal(network.calls[3].url.searchParams.get('offset'), '500');
+  assert.equal(network.remaining(), 0);
+});
+
 test('a 401 on a data request refreshes once and retries with the new bearer token', async () => {
   const { store, network } = await signedInStore(
     jsonResponse({ message: 'JWT expired' }, 401),
@@ -226,8 +247,10 @@ test('network failures receive a stable NETWORK code', async () => {
 });
 
 test('signOut clears local credentials even when logout cannot reach the server', async () => {
-  const { store, storage } = await signedInStore(() => Promise.reject(new TypeError('offline')));
+  const { store, storage, network } = await signedInStore(() => Promise.reject(new TypeError('offline')));
   await store.signOut();
   assert.equal(store.getRole(), null);
   assert.equal(storage.contents(), '');
+  assert.equal(network.calls[2].url.pathname, '/auth/v1/logout');
+  assert.equal(network.calls[2].url.searchParams.get('scope'), 'local');
 });

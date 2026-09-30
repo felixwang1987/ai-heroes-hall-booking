@@ -2,6 +2,10 @@
 
 一间重庆办公室会议室的网页预订系统。同事在电脑上预约、修改或取消会议；Windows 平板打开同一网站的展示模式，每 15 秒读取最新日程。页面布局参考原平板照片，新系统从空白预约表开始。
 
+**线上地址：**[电脑预订页面](https://felixwang1987.github.io/ai-heroes-hall-booking/) · [Windows 平板展示页面](https://felixwang1987.github.io/ai-heroes-hall-booking/?mode=display) · [GitHub 源码](https://github.com/felixwang1987/ai-heroes-hall-booking)
+
+> 账号角色绑定完成前，线上页面会标明“本机演示模式”。此模式的预约只保存在当前浏览器；不要把它当作正式预约记录。
+
 ## 已实现
 
 - 中英双语的今日列表、七天日程、空闲时段、当前状态与下一场会议。
