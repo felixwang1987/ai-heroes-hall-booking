@@ -4,6 +4,7 @@
 const EDITABLE_FIELDS = ['title', 'booker', 'starts_at', 'ends_at', 'remark'];
 const REFRESH_EARLY_MS = 60_000;
 const BOOKING_PAGE_SIZE = 500;
+const NAME_COLLATOR = new Intl.Collator('en', { sensitivity: 'base' });
 
 function storeError(code, message, cause, dbCode) {
   const error = new Error(message, cause ? { cause } : undefined);
@@ -328,7 +329,8 @@ export function createRemoteStore(config, deps = {}) {
       typeof row?.name !== 'string' || !row.name.trim() || row.name.length > 80)) {
       throw storeError('REMOTE', 'Invalid booker suggestions response.');
     }
-    return rows.map((row) => row.name.trim());
+    return rows.map((row) => row.name.trim())
+      .sort((a, b) => NAME_COLLATOR.compare(a, b));
   }
 
   async function writeBooking(path, method, body) {

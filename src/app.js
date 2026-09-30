@@ -1,5 +1,5 @@
 import { remoteConfig } from './config.js';
-import { createRemoteStore } from './remote.js?v=20260930-2';
+import { createRemoteStore } from './remote.js?v=20260930-3';
 import { createDemoStore } from './demo.js?v=20260930-2';
 import {
   OFFICE_TIME_ZONE, DAY_START, DAY_END, SLOT_MINUTES,

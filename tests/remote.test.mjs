@@ -244,11 +244,14 @@ test('listBookings requests only confirmed overlaps in UTC order', async () => {
   assert.equal(query.get('order'), 'starts_at.asc');
 });
 
-test('booker retrieves private name suggestions in database order', async () => {
+test('booker retrieves private name suggestions in case-insensitive alphabetical order', async () => {
   const { store, network } = await signedInStore(jsonResponse([
-    { name: 'Alex Chen' }, { name: 'Taylor Wu' },
+    { name: 'zeta Example' }, { name: 'Beta Example' },
+    { name: 'alpha Example' }, { name: 'Charlie Example' },
   ]));
-  assert.deepEqual(await store.listBookerSuggestions(), ['Alex Chen', 'Taylor Wu']);
+  assert.deepEqual(await store.listBookerSuggestions(), [
+    'alpha Example', 'Beta Example', 'Charlie Example', 'zeta Example',
+  ]);
   assert.equal(network.calls[2].url.pathname, '/rest/v1/booker_suggestions');
   assert.equal(network.calls[2].url.searchParams.get('select'), 'name');
   assert.equal(network.calls[2].url.searchParams.get('order'), 'sort_order.asc');
