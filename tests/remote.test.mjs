@@ -244,6 +244,43 @@ test('listBookings requests only confirmed overlaps in UTC order', async () => {
   assert.equal(query.get('order'), 'starts_at.asc');
 });
 
+test('booker retrieves private name suggestions in database order', async () => {
+  const { store, network } = await signedInStore(jsonResponse([
+    { name: 'Alex Chen' }, { name: 'Taylor Wu' },
+  ]));
+  assert.deepEqual(await store.listBookerSuggestions(), ['Alex Chen', 'Taylor Wu']);
+  assert.equal(network.calls[2].url.pathname, '/rest/v1/booker_suggestions');
+  assert.equal(network.calls[2].url.searchParams.get('select'), 'name');
+  assert.equal(network.calls[2].url.searchParams.get('order'), 'sort_order.asc');
+  assert.equal(network.calls[2].options.headers.Authorization, 'Bearer access-1');
+  assert.equal(network.remaining(), 0);
+});
+
+test('display session cannot request private name suggestions', async () => {
+  const network = scriptedFetch(
+    jsonResponse(authResponse('display-access', 'display-refresh', config.displayEmail)),
+    jsonResponse([{ role: 'display' }]),
+  );
+  const store = createRemoteStore(config, {
+    role: 'display', fetch: network.fetch, storage: memoryStorage(),
+  });
+  await store.signIn('display', 'tablet-password');
+  await assert.rejects(store.listBookerSuggestions(), { code: 'PERMISSION' });
+  assert.equal(network.calls.length, 2);
+});
+
+test('private name suggestions propagate network failures as NETWORK', async () => {
+  const { store } = await signedInStore(() => Promise.reject(new TypeError('offline')));
+  await assert.rejects(store.listBookerSuggestions(), { code: 'NETWORK' });
+});
+
+test('private name suggestions reject malformed responses', async () => {
+  for (const response of [null, {}, [{ name: 'Alex Chen' }, { name: '' }], [{ id: '1' }]]) {
+    const { store } = await signedInStore(jsonResponse(response));
+    await assert.rejects(store.listBookerSuggestions(), { code: 'REMOTE' });
+  }
+});
+
 test('listBookings fetches every page when the API limits the first response', async () => {
   const firstPage = Array.from({ length: 500 }, (_, index) => ({
     id: `booking-${index}`, status: 'confirmed',

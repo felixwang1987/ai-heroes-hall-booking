@@ -1,6 +1,6 @@
 import { remoteConfig } from './config.js';
-import { createRemoteStore } from './remote.js';
-import { createDemoStore } from './demo.js';
+import { createRemoteStore } from './remote.js?v=20260930-2';
+import { createDemoStore } from './demo.js?v=20260930-2';
 import {
   OFFICE_TIME_ZONE, DAY_START, DAY_END, SLOT_MINUTES,
   officeDateKey, officeTime, toOfficeISO, shiftDateKey, weekStart,
@@ -32,6 +32,7 @@ const state = {
   refreshId: 0,
   pendingBooking: false,
 };
+let suggestionsRequestId = 0;
 
 document.body.dataset.mode = mode;
 
@@ -59,6 +60,40 @@ function bookingsFor(dateKey) {
 }
 
 function hasBookerAccess() { return state.role === 'booker' && mode === 'booking'; }
+
+function clearBookerSuggestions() {
+  suggestionsRequestId += 1;
+  $('bookerSuggestions').replaceChildren();
+  setText('bookerSuggestionsStatus', '');
+  $('bookerSuggestionsStatus').hidden = true;
+}
+
+function clearPrivateBookingForm() {
+  clearBookerSuggestions();
+  if ($('bookingDialog').open) $('bookingDialog').close();
+  $('bookingForm').reset();
+  state.editingId = null;
+  state.cancelArmedId = null;
+}
+
+async function loadBookerSuggestions() {
+  clearBookerSuggestions();
+  if (!hasBookerAccess()) return;
+  const requestId = suggestionsRequestId;
+  try {
+    const names = await store.listBookerSuggestions();
+    if (requestId !== suggestionsRequestId || !hasBookerAccess()) return;
+    $('bookerSuggestions').replaceChildren(...names.map((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      return option;
+    }));
+  } catch {
+    if (requestId !== suggestionsRequestId || !hasBookerAccess()) return;
+    setText('bookerSuggestionsStatus', '姓名建议暂不可用，可直接输入全名。');
+    $('bookerSuggestionsStatus').hidden = false;
+  }
+}
 
 function showDialog(dialog) {
   if (!dialog.open) dialog.showModal();
@@ -472,9 +507,11 @@ async function refresh() {
     state.lastSync = new Date();
     state.syncError = null;
   } catch (error) {
+    if (id !== state.refreshId || !state.role) return;
     state.syncError = error.code === 'AUTH' ? '登录已失效' : error.code === 'NETWORK' ? '网络连接中断' : '请检查云端配置';
     if (error.code === 'AUTH') {
       state.role = null;
+      clearPrivateBookingForm();
       state.bookings = [];
       state.lastSync = null;
       state.loadedFrom = null;
@@ -500,6 +537,7 @@ async function handleLogin(event) {
   setText('loginError', '');
   try {
     state.role = await store.signIn(expectedRole, password);
+    void loadBookerSuggestions();
     $('loginDialog').close();
     $('loginPassword').value = '';
     await refresh();
@@ -508,7 +546,8 @@ async function handleLogin(event) {
       openNewBooking();
     }
   } catch (error) {
-    setText('loginError', error.code === 'AUTH' ? '密码错误，请重试。' : error.code === 'NETWORK' ? '无法连接云端，请检查网络。' : error.message);
+    setText('loginError', error.code === 'AUTH' ? '密码错误，请重试。' : error.code === 'NETWORK'
+      ? '云端请求失败，请重试。若仅 Chrome 出现，请试访客模式并检查扩展或代理设置。' : error.message);
   } finally {
     button.disabled = false;
     renderAll();
@@ -597,9 +636,10 @@ function bindEvents() {
   $('openScheduleBtn').addEventListener('click', () => { renderSchedule(); showDialog($('scheduleDialog')); void refresh(); });
   $('authButton').addEventListener('click', async () => {
     if (!state.role) { openLogin(); return; }
-    await store.signOut();
+    const signOut = store.signOut();
     state.refreshId += 1;
     state.role = null;
+    clearPrivateBookingForm();
     state.bookings = [];
     state.lastSync = null;
     state.loadedFrom = null;
@@ -607,6 +647,7 @@ function bindEvents() {
     state.syncError = null;
     renderAll();
     showToast('已退出 / Signed out');
+    await signOut;
   });
   $('closeBookingBtn').addEventListener('click', () => $('bookingDialog').close());
   $('closeScheduleBtn').addEventListener('click', () => $('scheduleDialog').close());
@@ -644,8 +685,10 @@ async function init() {
       state.role = await store.signIn('display', 'demo');
     }
     renderAll();
-    if (state.role) await refresh();
-    else openLogin();
+    if (state.role) {
+      void loadBookerSuggestions();
+      await refresh();
+    } else openLogin();
   } catch (error) {
     state.syncError = error.code === 'NETWORK' ? '网络连接中断' : '初始化失败';
     renderAll();

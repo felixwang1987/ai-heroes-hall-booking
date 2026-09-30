@@ -11,6 +11,7 @@
 - 中英双语的今日列表、七天日程、空闲时段、当前状态与下一场会议。
 - 08:00–17:00 每 30 分钟预约；12:00–13:00 不可预约。日期、时钟及数据库规则按 `Asia/Shanghai`（北京时间）。
 - 会议名称、预订人、日期、时间及可选备注；预订、修改、取消。选定日期和时间后立即显示冲突会议的时间、名称与预订人。
+- 预订人输入时可选部门姓名建议，也可填写名单外的完整姓名。名单保存在 Supabase，只有部门预订账号登录后能读取；公开仓库不包含姓名。
 - 平板展示页按 1920×1080 全屏布局，并检查了 Windows 125% 缩放时约 1536×864 的视口。页面整体一屏显示，会议较多时仅会议列表内部滚动；表单输入框、日期框和时间下拉框统一为 48px 高。
 - 同事共用一个部门密码。平板使用另一个只读密码；两者都由 Supabase Auth 验证。数据库行级规则限制写入，数据库约束阻止并发预订同一时段。
 - 左侧展示中国与马来西亚吉打州（居林）的公共假日；中国调休工作日不会被当作假日。假日数据是经核对的本地快照，覆盖中国 2026 年、吉打州 2026–2027 年；更新方法见下文。
@@ -58,6 +59,7 @@ python3 -m http.server 4173
 
 5. 在项目设置中复制 **Project URL** 和 **publishable key**，填入 [`src/config.js`](src/config.js) 的 `supabaseUrl`、`supabasePublishableKey`，同时填写两个账号邮箱。`timeZone` 保持 `Asia/Shanghai`。**不要填写密码或任何 secret/service-role key。**
 6. 用本机网页测试：同事端使用部门密码登录并预订一条测试会议，另一个浏览器打开 `?mode=display`，使用平板密码登录，等待最多约 15 秒看到更新。再测试修改、取消和冲突提醒。演示模式中的预约不会迁移到云端。
+7. 如需预订人姓名建议，在 SQL Editor 执行 [`supabase/booker-suggestions.sql`](supabase/booker-suggestions.sql)，再由管理员直接在 Supabase 中录入姓名和排序序号。名单不要写入公开仓库。未配置该表时，仍可手动输入预订人姓名。
 
 > 如果 Supabase 仪表板无法直接创建并确认密码用户，使用其[官方管理员建用户接口](https://supabase.com/docs/reference/javascript/auth-admin-createuser)在**本机或服务端**创建，设置 `email_confirm: true`。管理员密钥只能在这一步的安全环境中使用，不能进入 `src/config.js` 或 GitHub。
 
@@ -76,6 +78,7 @@ python3 -m http.server 4173
 - Supabase 免费项目如果连续一段时间活动过低，可能暂停；项目管理员收到警告后可登录 Supabase 查看，暂停后可在仪表板恢复。[官方暂停说明](https://supabase.com/docs/guides/platform/free-project-pausing)。
 - 节假日列表是 [`src/holidays.js`](src/holidays.js) 中的静态数据。中国 2027 年官方放假安排尚未公布；吉打州 2027 年单独宣布的临时节假日、日期修订和补假也应在官方发布后更新。更新数据、运行测试并重新发布即可生效。代码注释列有原始来源。
 - 平板浏览器登录后会在本机保存登录刷新令牌，以便重启网页后继续只读访问；不要把平板作为他人可操作的普通电脑。
+- 如果只有 Chrome 登录时提示云端请求失败，而 Edge 在同一台电脑和网络下正常，可先用 Chrome 访客模式排查扩展。若仍失败，在 Chrome 开发者工具的 Network 面板查看 `/auth/v1/token` 或 `/rest/v1/app_roles` 的状态码；不要发送请求体、请求头或 HAR 文件，因为其中可能包含密码或登录令牌。
 - 不做旧 EXE 数据迁移；正式云端预约表从空白开始。
 
 ## 测试

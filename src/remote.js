@@ -321,6 +321,16 @@ export function createRemoteStore(config, deps = {}) {
       .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
   }
 
+  async function listBookerSuggestions() {
+    await requireBooker();
+    const rows = await authorizedRequest('/rest/v1/booker_suggestions?select=name&order=sort_order.asc');
+    if (!Array.isArray(rows) || rows.some((row) =>
+      typeof row?.name !== 'string' || !row.name.trim() || row.name.length > 80)) {
+      throw storeError('REMOTE', 'Invalid booker suggestions response.');
+    }
+    return rows.map((row) => row.name.trim());
+  }
+
   async function writeBooking(path, method, body) {
     await requireBooker();
     const rows = await authorizedRequest(path, {
@@ -356,6 +366,6 @@ export function createRemoteStore(config, deps = {}) {
       'PATCH', { status: 'cancelled' });
   }
 
-  return { signIn, restoreSession, signOut, getRole, listBookings,
+  return { signIn, restoreSession, signOut, getRole, listBookings, listBookerSuggestions,
     createBooking, updateBooking, cancelBooking };
 }

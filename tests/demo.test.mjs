@@ -45,3 +45,13 @@ test('demo session restores in the same browser tab and sign-out clears it', asy
   await b.signOut();
   assert.equal(await createDemoStore(options).restoreSession(), null);
 });
+
+test('demo booker receives an empty private suggestion list and display is denied', async () => {
+  const booker = createDemoStore({ bookingStorage: memoryStorage(), sessionStorage: memoryStorage() });
+  await booker.signIn('booker', 'preview');
+  assert.deepEqual(await booker.listBookerSuggestions(), []);
+
+  const display = createDemoStore({ bookingStorage: memoryStorage(), sessionStorage: memoryStorage() });
+  await display.signIn('display', 'preview');
+  await assert.rejects(display.listBookerSuggestions(), { code: 'PERMISSION' });
+});

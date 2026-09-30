@@ -80,6 +80,10 @@ export function createDemoStore({
           Date.parse(booking.ends_at) > Date.parse(fromISO))
         .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
     },
+    async listBookerSuggestions() {
+      requireBooker();
+      return [];
+    },
     async createBooking(payload) {
       requireBooker();
       assertNoOverlap(payload);
