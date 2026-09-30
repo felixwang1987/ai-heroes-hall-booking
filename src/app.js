@@ -167,7 +167,9 @@ function renderHolidays() {
 function renderToday() {
   const container = $('todayBookings');
   if (!state.role) {
-    container.replaceChildren(make('p', 'empty-state', '输入部门密码后查看日程 / Sign in to view bookings'));
+    container.replaceChildren(make('p', 'empty-state', mode === 'display'
+      ? '输入平板密码后查看日程 / Sign in to view bookings'
+      : '输入部门密码后查看日程 / Sign in to view bookings'));
     return;
   }
   if (!state.lastSync) {
@@ -399,6 +401,7 @@ function openLogin() {
   setText('loginError', '');
   $('loginPassword').value = '';
   setText('loginTitle', mode === 'display' ? '平板只读登录 / Display sign in' : '部门登录 / Team sign in');
+  setText('loginPasswordLabel', mode === 'display' ? '平板密码 / Display password' : '部门密码 / Team password');
   const description = $('loginForm').querySelector('p');
   description.textContent = mode === 'display'
     ? '输入平板专用密码，屏幕只显示预约，不提供修改功能。'
