@@ -189,8 +189,8 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .next-meeting-title { margin: 0 0 7px; font-size: 19px; font-weight: 800; }
 .next-meeting-time { margin: 0; color: var(--blue); font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .next-meeting-booker { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
-.room-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 25px; }
-.room-facts span { padding: 7px 10px; border: 1px solid #e1e9f2; border-radius: 8px; background: #f7f9fc; color: #34506f; font-size: 12px; font-weight: 700; }
+.room-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 25px; }
+.room-facts span { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 7px 10px; border: 1px solid #e1e9f2; border-radius: 8px; background: #f7f9fc; color: #34506f; font-size: 12px; font-weight: 700; text-align: center; }
 .room-hours { margin: 13px 0 0; color: #8290a0; font-size: 12px; line-height: 1.5; }
 .availability-scale { display: flex; justify-content: space-between; margin-top: 23px; color: #57708c; font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 750; }
 .availability-bar { display: flex; min-width: 0; height: 18px; overflow: hidden; margin-top: 8px; border-radius: 999px; background: #e9eef5; }
@@ -352,8 +352,8 @@ body[data-mode="display"] .page-heading h2 { font-size: clamp(26px, 2.35vw, 41px
   .header-actions { flex-wrap: nowrap; max-width: none; }
   .summary-grid { gap: 10px; }
   .summary-card { min-height: 190px; padding: 17px; }
-  .room-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 17px; }
-  .room-facts span { min-width: 0; padding: 6px 4px; font-size: 10px; text-align: center; }
+  .room-facts { gap: 6px; margin-top: 17px; }
+  .room-facts span { padding: 6px 4px; font-size: 10px; }
   .availability-scale { margin-top: 18px; }
 }
 
