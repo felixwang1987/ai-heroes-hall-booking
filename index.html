@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#111d39" />
     <meta name="description" content="AI 英雄汇会议室日程与预订。" />
     <title>AI 英雄汇 · 会议室预订</title>
-    <link rel="stylesheet" href="./styles.css?v=20260930-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260930-4" />
   </head>
   <body data-mode="booking" data-auth="signed-out">
     <a class="skip-link" href="#mainContent">跳到日程 / Skip to schedule</a>
@@ -179,8 +179,12 @@
           </div>
           <div class="field">
             <label for="bookerName">预订人 / Booker <span class="required-mark">*</span></label>
-            <input id="bookerName" name="bookerName" type="text" list="bookerSuggestions" maxlength="80" autocomplete="off" required placeholder="输入姓名，或从名单选择" />
-            <datalist id="bookerSuggestions"></datalist>
+            <div id="bookerCombobox" class="booker-combobox">
+              <input id="bookerName" name="bookerName" type="text" maxlength="80" autocomplete="off" required placeholder="输入姓名，或从名单选择" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="bookerSuggestions" aria-expanded="false" />
+              <button id="bookerSuggestionsToggle" class="booker-suggestions-toggle" type="button" aria-label="展开预订人名单" aria-controls="bookerSuggestions" aria-expanded="false" hidden><span aria-hidden="true"></span></button>
+            </div>
+            <ul id="bookerSuggestions" class="booker-suggestions" role="listbox" aria-label="预订人姓名建议" hidden></ul>
+            <p id="bookerSuggestionsAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
             <p id="bookerSuggestionsStatus" class="field-hint" role="status" hidden></p>
           </div>
           <fieldset class="time-fieldset">
@@ -251,6 +255,6 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="./src/app.js?v=20260930-3"></script>
+    <script type="module" src="./src/app.js?v=20260930-4"></script>
   </body>
 </html>

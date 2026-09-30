@@ -33,6 +33,10 @@ const state = {
   pendingBooking: false,
 };
 let suggestionsRequestId = 0;
+let bookerSuggestions = [];
+let visibleBookerSuggestions = [];
+let activeBookerSuggestion = -1;
+let suggestionEscapePending = false;
 
 document.body.dataset.mode = mode;
 
@@ -61,9 +65,80 @@ function bookingsFor(dateKey) {
 
 function hasBookerAccess() { return state.role === 'booker' && mode === 'booking'; }
 
+function closeBookerSuggestions() {
+  const input = $('bookerName');
+  const list = $('bookerSuggestions');
+  const toggle = $('bookerSuggestionsToggle');
+  list.hidden = true;
+  list.replaceChildren();
+  visibleBookerSuggestions = [];
+  activeBookerSuggestion = -1;
+  input.setAttribute('aria-expanded', 'false');
+  input.removeAttribute('aria-activedescendant');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', '展开预订人名单');
+  setText('bookerSuggestionsAnnouncement', '');
+}
+
+function closeBookerSuggestionsForEscape() {
+  suggestionEscapePending = true;
+  closeBookerSuggestions();
+  setTimeout(() => { suggestionEscapePending = false; }, 0);
+}
+
+function openBookerSuggestions({ all = false } = {}) {
+  if (!hasBookerAccess() || !bookerSuggestions.length) return;
+  const input = $('bookerName');
+  const list = $('bookerSuggestions');
+  const toggle = $('bookerSuggestionsToggle');
+  const query = all ? '' : input.value.trim().toLocaleLowerCase('en');
+  visibleBookerSuggestions = bookerSuggestions.filter((name) =>
+    name.toLocaleLowerCase('en').includes(query));
+  activeBookerSuggestion = -1;
+  input.removeAttribute('aria-activedescendant');
+  const options = visibleBookerSuggestions.map((name, index) => {
+    const option = make('li', '', name);
+    option.id = `bookerSuggestion-${index}`;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    option.dataset.index = String(index);
+    return option;
+  });
+  if (!options.length) options.push(make('li', 'booker-suggestions-empty',
+    '名单中没有匹配的姓名，可直接输入完整姓名。'));
+  list.replaceChildren(...options);
+  list.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.setAttribute('aria-label', '收起预订人名单');
+  setText('bookerSuggestionsAnnouncement', visibleBookerSuggestions.length
+    ? `${visibleBookerSuggestions.length} 位姓名可选，按上下方向键选择；也可直接输入完整姓名。`
+    : '名单中没有匹配的姓名，可直接输入完整姓名。');
+}
+
+function setActiveBookerSuggestion(index) {
+  if (!visibleBookerSuggestions.length) return;
+  activeBookerSuggestion = (index + visibleBookerSuggestions.length) % visibleBookerSuggestions.length;
+  const options = $('bookerSuggestions').querySelectorAll('[role="option"]');
+  options.forEach((option, optionIndex) =>
+    option.setAttribute('aria-selected', String(optionIndex === activeBookerSuggestion)));
+  const selected = options[activeBookerSuggestion];
+  $('bookerName').setAttribute('aria-activedescendant', selected.id);
+  selected.scrollIntoView({ block: 'nearest' });
+}
+
+function selectBookerSuggestion(index) {
+  if (!hasBookerAccess() || index < 0 || index >= visibleBookerSuggestions.length) return;
+  const input = $('bookerName');
+  input.value = visibleBookerSuggestions[index];
+  closeBookerSuggestions();
+}
+
 function clearBookerSuggestions() {
   suggestionsRequestId += 1;
-  $('bookerSuggestions').replaceChildren();
+  bookerSuggestions = [];
+  closeBookerSuggestions();
+  $('bookerSuggestionsToggle').hidden = true;
   setText('bookerSuggestionsStatus', '');
   $('bookerSuggestionsStatus').hidden = true;
 }
@@ -83,11 +158,9 @@ async function loadBookerSuggestions() {
   try {
     const names = await store.listBookerSuggestions();
     if (requestId !== suggestionsRequestId || !hasBookerAccess()) return;
-    $('bookerSuggestions').replaceChildren(...names.map((name) => {
-      const option = document.createElement('option');
-      option.value = name;
-      return option;
-    }));
+    bookerSuggestions = names;
+    $('bookerSuggestionsToggle').hidden = names.length === 0;
+    if ($('bookingDialog').open && document.activeElement === $('bookerName')) openBookerSuggestions();
   } catch {
     if (requestId !== suggestionsRequestId || !hasBookerAccess()) return;
     setText('bookerSuggestionsStatus', '姓名建议暂不可用，可直接输入全名。');
@@ -436,6 +509,7 @@ function openNewBooking() {
   state.editingId = null;
   state.cancelArmedId = null;
   const choice = nextDefaultSlot();
+  closeBookerSuggestions();
   $('bookingForm').reset();
   $('meetingDate').min = officeDateKey();
   $('meetingDate').value = choice.date;
@@ -455,6 +529,7 @@ function openNewBooking() {
 
 function openEdit(booking) {
   if (!hasBookerAccess()) return;
+  closeBookerSuggestions();
   state.editingId = booking.id;
   state.cancelArmedId = null;
   $('meetingDate').min = officeDateKey();
@@ -650,6 +725,59 @@ function bindEvents() {
     await signOut;
   });
   $('closeBookingBtn').addEventListener('click', () => $('bookingDialog').close());
+  $('bookingDialog').addEventListener('close', closeBookerSuggestions);
+  $('bookingDialog').addEventListener('cancel', (event) => {
+    if (!suggestionEscapePending && $('bookerSuggestions').hidden) return;
+    event.preventDefault();
+    suggestionEscapePending = false;
+    closeBookerSuggestions();
+  });
+  $('bookerName').addEventListener('focus', openBookerSuggestions);
+  $('bookerName').addEventListener('click', openBookerSuggestions);
+  $('bookerName').addEventListener('input', openBookerSuggestions);
+  $('bookerName').addEventListener('keydown', (event) => {
+    const list = $('bookerSuggestions');
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!bookerSuggestions.length || !hasBookerAccess()) return;
+      event.preventDefault();
+      if (list.hidden) openBookerSuggestions();
+      const next = activeBookerSuggestion < 0
+        ? event.key === 'ArrowDown' ? 0 : visibleBookerSuggestions.length - 1
+        : activeBookerSuggestion + (event.key === 'ArrowDown' ? 1 : -1);
+      setActiveBookerSuggestion(next);
+    } else if (event.key === 'Enter' && !list.hidden && activeBookerSuggestion >= 0) {
+      event.preventDefault();
+      selectBookerSuggestion(activeBookerSuggestion);
+    } else if (event.key === 'Escape' && !list.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeBookerSuggestionsForEscape();
+    } else if (event.key === 'Tab') {
+      closeBookerSuggestions();
+    }
+  });
+  $('bookerSuggestionsToggle').addEventListener('click', (event) => {
+    if ($('bookerSuggestions').hidden) {
+      if (event.detail === 0) $('bookerName').focus({ preventScroll: true });
+      openBookerSuggestions({ all: true });
+    } else closeBookerSuggestions();
+  });
+  $('bookerSuggestionsToggle').addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !$('bookerSuggestions').hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeBookerSuggestionsForEscape();
+    } else if (event.key === 'Tab') {
+      closeBookerSuggestions();
+    }
+  });
+  $('bookerSuggestions').addEventListener('click', (event) => {
+    const option = event.target.closest('[role="option"]');
+    if (option) selectBookerSuggestion(Number(option.dataset.index));
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!$('bookerCombobox').parentElement.contains(event.target)) closeBookerSuggestions();
+  });
   $('closeScheduleBtn').addEventListener('click', () => $('scheduleDialog').close());
   $('closeLoginBtn').addEventListener('click', () => $('loginDialog').close());
   $('bookingForm').addEventListener('submit', handleBooking);
