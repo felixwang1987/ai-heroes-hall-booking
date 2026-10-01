@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#111d39" />
     <meta name="description" content="AI 英雄汇会议室日程与预订。" />
     <title>AI 英雄汇 · 会议室预订</title>
-    <link rel="stylesheet" href="./styles.css?v=20260930-5" />
+    <link rel="stylesheet" href="./styles.css?v=20260930-6" />
   </head>
   <body data-mode="booking" data-auth="signed-out">
     <a class="skip-link" href="#mainContent">跳到日程 / Skip to schedule</a>
@@ -208,7 +208,7 @@
           <div class="booking-availability" aria-label="所选日期可用状态">
             <div class="booking-availability-title">
               <strong>所选日期可用状态 / Availability</strong>
-              <span>08:00–17:00</span>
+              <span id="bookingAvailabilityDate">08:00–17:00</span>
             </div>
             <div id="bookingAvailabilityBar" class="availability-bar booking-availability-bar">
               <span class="availability-prompt">选择日期以查看可用时段</span>
@@ -255,6 +255,6 @@
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="./src/app.js?v=20260930-4"></script>
+    <script type="module" src="./src/app.js?v=20260930-6"></script>
   </body>
 </html>

@@ -330,13 +330,12 @@ function renderNext() {
     make('p', 'next-meeting-booker', `预订人 / Booker: ${next.booker}`));
 }
 
-function fillAvailability(container, dateKey, excludeId = null) {
+function fillAvailability(container, dateKey) {
   if (!state.loadedFrom || dateKey < state.loadedFrom || dateKey > state.loadedTo) {
     container.replaceChildren(make('span', 'availability-prompt', '正在读取可用时段 / Loading'));
     return;
   }
-  const bookings = excludeId ? state.bookings.filter((booking) => booking.id !== excludeId) : state.bookings;
-  const segments = availabilityForDate(bookings, dateKey);
+  const segments = availabilityForDate(state.bookings, dateKey);
   container.replaceChildren(...segments.map((slot) => {
     const bar = make('span', `availability-segment ${slot.status}`);
     bar.title = `${slot.start}–${slot.end} · ${slot.status === 'available' ? '可用' : slot.status === 'booked' ? '已预订' : '午休'}`;
@@ -349,14 +348,19 @@ function fillAvailability(container, dateKey, excludeId = null) {
 function renderAvailability() {
   const todayBar = $('availabilityBar');
   const bookingBar = $('bookingAvailabilityBar');
+  const today = officeDateKey();
+  const dateKey = state.selectedDate || $('meetingDate').value || today;
+  const relativeDate = dateKey === today ? '（今天）'
+    : dateKey === shiftDateKey(today, 1) ? '（明天）' : '';
+  setText('bookingAvailabilityDate', `${formatDate(dateKey, { month: 'long', day: 'numeric' })}${relativeDate} · 08:00–17:00`);
   if (!state.role) {
     todayBar.replaceChildren();
     bookingBar.replaceChildren(make('span', 'availability-prompt', '登录后查看可用时段'));
     renderBookingConflict();
     return;
   }
-  fillAvailability(todayBar, officeDateKey());
-  if (state.selectedDate) fillAvailability(bookingBar, state.selectedDate, state.editingId);
+  fillAvailability(todayBar, today);
+  if (state.selectedDate) fillAvailability(bookingBar, state.selectedDate);
   renderBookingConflict();
 }
 
